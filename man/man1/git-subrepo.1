@@ -345,7 +345,10 @@ the \f(CW\*(C`\-\-quiet\*(C'\fR flag is used, just print the subrepo names, one 
 .Sp
 The \f(CW\*(C`\-\-verbose\*(C'\fR option will show all the recent local and upstream commits.
 .Sp
-The \f(CW\*(C`status\*(C'\fR command accepts the \f(CW\*(C`\-\-fetch\*(C'\fR option.
+Using the \f(CW\*(C`\-\-all\*(C'\fR with the \f(CW\*(C`status\*(C'\fR command will show even the subrepos of
+the subrepos (if they exist).
+.Sp
+The \f(CW\*(C`status\*(C'\fR command accepts the \f(CW\*(C`\-\-all\*(C'\fR and \f(CW\*(C`\-\-fetch\*(C'\fR options.
 .ie n .IP """git subrepo clean <subdir>|\-\-all""" 4
 .el .IP "\f(CWgit subrepo clean <subdir>|\-\-all\fR" 4
 .IX Item "git subrepo clean <subdir>|--all"

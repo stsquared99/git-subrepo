@@ -270,7 +270,10 @@ help:status() {
 
   The `--verbose` option will show all the recent local and upstream commits.
 
-  The `status` command accepts the `--fetch` option.
+  Using the `--all` with the `status` command will show even the subrepos of
+  the subrepos (if they exist).
+
+  The `status` command accepts the `--all` and `--fetch` options.
 ...
 }
 

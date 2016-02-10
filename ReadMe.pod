@@ -288,7 +288,10 @@ the C<--quiet> flag is used, just print the subrepo names, one per line.
 
 The C<--verbose> option will show all the recent local and upstream commits.
 
-The C<status> command accepts the C<--fetch> option.
+Using the C<--all> with the C<status> command will show even the subrepos of
+the subrepos (if they exist).
+
+The C<status> command accepts the C<--all> and C<--fetch> options.
 
 =item C<< git subrepo clean <subdir>|--all >>
 
