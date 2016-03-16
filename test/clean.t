@@ -87,8 +87,16 @@ test-exists \
 )
 
 test-exists \
-  "!$OWNER/foo/.git/refs/subrepo/bar/qux/fetch" \
+  "$OWNER/foo/.git/refs/subrepo/bar/qux/fetch" \
   "!$OWNER/foo/.git/refs/subrepo/baz/fetch"
+
+(
+  cd $OWNER/foo
+  git subrepo clean --ALL --force
+)
+
+test-exists \
+  "!$OWNER/foo/.git/refs/subrepo/bar/qux/fetch" \
 
 done_testing
 
