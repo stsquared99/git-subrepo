@@ -996,43 +996,42 @@ subrepo:status() {
       continue
     fi
 
-    if ! subrepo:merge-base "$refs_subrepo_fetch" "$refs_subrepo_branch" \
-         false; then
-      echo "Git subrepo '$subdir':"
-      echo "  Status not available: no common ancestor found"
-      echo
-      continue
+    local ahead=false
+    local behind=false
+
+    upstream_head_commit="$(git rev-parse "$refs_subrepo_fetch")"
+    if [[ $upstream_head_commit != $subrepo_commit ]]; then
+      behind=true
     fi
 
-    if [[ -n $first_on_source ]] && [[ -n $first_on_target ]]; then
-      if ! "$quiet_wanted"; then
-        echo "Git subrepo '$subdir':"
-        echo "  Subrepo is up-to-date with upstream."
-        echo
-      fi
-    elif [[ -n $first_on_source ]]; then
+    # new_upstream_head_commit="$(git rev-parse "$refs_subrepo_branch")"
+    # if ! $new_upstream; then
+    #   if [[ $upstream_head_commit == $new_upstream_head_commit ]]; then
+    #     OK=false
+    #     CODE=-2
+    #     return
+    #   fi
+    # fi
+
+    if $ahead && $behind; then
+      echo "Git subrepo '$subdir':"
+      echo "  Subrepo and upstream have diverged."
+      echo "    (use 'git subrepo pull' to merge the remote subrepo into yours)"
+      echo
+    elif $ahead; then
       echo "Git subrepo '$subdir':"
       echo "  Subrepo is ahead of upstream."
       echo "    (use 'git subrepo push' to publish your local commits)"
       echo
-    elif [[ -n $first_on_target ]]; then
+    elif $behind; then
       echo "Git subrepo '$subdir':"
       echo "  Subrepo is behind upstream."
       echo "    (use 'git subrepo pull' to update your local subrepo)"
       echo
     else
-      local fetch_commit=$(git show-ref -s $refs_subrepo_fetch)
-
-      if [[ "$fetch_commit" == "$subrepo_commit" ]]; then
+      if ! "$quiet_wanted"; then
         echo "Git subrepo '$subdir':"
-        echo "  Subrepo is ahead of upstream."
-        echo "    (use 'git subrepo push' to publish your local commits)"
-        echo
-      else
-        echo "Git subrepo '$subdir':"
-        echo "  Subrepo and upstream have diverged."
-        echo "    (use 'git subrepo pull' to merge the remote subrepo into "\
-"yours)"
+        echo "  Subrepo is up-to-date with upstream."
         echo
       fi
     fi
