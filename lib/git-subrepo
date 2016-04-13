@@ -220,7 +220,6 @@ command:pull() {
   elif [[ $CODE -eq -1 ]]; then
     say "Subrepo '$subdir' is up to date."
   elif [[ $CODE -eq 1 ]]; then
-    error-pull-rebase
     return "$CODE"
   else
     die "Unknown pull error code: '$CODE'"
@@ -534,11 +533,6 @@ subrepo:pull() {
   o "Fetch the upstream: $subrepo_remote ($subrepo_branch)."
   CALL subrepo:fetch
 
-  # Check if we already are up to date:
-  if [[ $upstream_head_commit == $subrepo_commit ]]; then
-    OK=false; CODE=-1; return
-  fi
-
   local branch_name="subrepo/$subdir"
   if git:branch-exists "$branch_name"; then
     o "Deleting old '$branch_name' branch."
@@ -547,45 +541,42 @@ subrepo:pull() {
   o "Create subrepo branch '$branch_name'."
   CALL subrepo:branch
 
-  command-workdir
+  local branch_head_commit=$(git rev-parse "$branch_name")
+  local common_ancestor_commit=$(git merge-base "$branch_name" \
+"$refs_subrepo_fetch")
+  local fetch_head_commit=$(git rev-parse "$refs_subrepo_fetch")
 
-  o "Find common ancestor (with same treehash)."
-  if ! subrepo:merge-base "$refs_subrepo_fetch" "$branch_name" false; then
+  o "Find common ancestor."
+  if [[ -z $common_ancestor_commit ]]; then
     error "Can't find a common ancestor between $refs_subrepo_fetch "\
 "and $branch_name. This might be the case if someone used push --force on "\
 "the subrepo. You need to find out why and possibly reclone the subrepo."
+    OK=false; CODE=1; return
   fi
 
-  if [[ -n $first_on_source ]] && [[ -n $first_on_target ]]; then
-    o "We are already at the same tree hash, only update local '.gitrepo'."
-    subrepo_commit_ref="$refs_subrepo_fetch"
-  else
-    subrepo_commit_ref="$branch_name"
-    o "Set a common ancestor."
-    RUN git rebase --onto "$new_parent" "$old_parent" "$branch_name"
-
-    o "Rebase $upstream_ref onto $branch_name."
-    FAIL=false OUT=true RUN git rebase "$refs_subrepo_fetch" "$branch_name"
-    if ! OK; then
-      say "The \"git rebase\" command failed:"
-      say
-      say "  ${output//$'\n'/$'\n'  }"
-      CODE=1
-      return
-    fi
+  # Check if we already are up to date:
+  if [[ $branch_head_commit == $fetch_head_commit ]] ||
+    [[ $common_ancestor_commit == $fetch_head_commit ]]; then
+    OK=false; CODE=-1; return
   fi
 
-  if $using_workdir; then
-    o "Change directory to original '$original_working_dir'."
-    cd $original_working_dir
-    using_workdir=false
-  else
-    o "Checkout '$original_head_branch'."
-    RUN git checkout "$original_head_branch"
+  if [[ $common_ancestor_commit != $branch_head_commit ]]; then
+    error "Local and remote branches diverge, perform \"push --force\" or "\
+"resolve conflicts manually"
+    OK=false; CODE=1; return
   fi
 
-  o "Commit the new '$subrepo_commit_ref' content."
-  CALL subrepo:commit
+  o "Cherry-pick the difference in commits."
+  FAIL=false OUT=false RUN git cherry-pick \
+$common_ancestor_commit..$fetch_head_commit
+
+  if ! OK; then
+    error "Encountered an error cherry-picking upstream changes"
+    FAIL=false RUN git cherry-pick --abort
+    o "Reset to the '$original_head_branch' branch."
+    RUN git reset --hard "$original_head_commit"
+    OK=false; CODE=1; return
+  fi
 
   o "Create ref '$refs_subrepo_pull' for branch '$branch_name'."
   git:make-ref "$refs_subrepo_pull" "$branch_name"
