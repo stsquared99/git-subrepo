@@ -616,40 +616,30 @@ subrepo:push() {
       else
         error "Fetch for push failed: $output"
       fi
-    else
-      # Check that we are up to date:
-      o "Check upstream head against .gitrepo commit."
-      if [[ $upstream_head_commit == $subrepo_commit ]]; then
-        ready_to_push=true
-      fi
     fi
 
     branch_name="subrepo-push/$subdir"
-    if git:branch-exists "$branch_name"; then
-      error "There is a previous push branch '$branch_name'. "\
-"Delete it first."
-    fi
-
     o "Create subrepo branch '$branch_name'."
+    FAIL=false RUN git branch -D "$branch_name"
     CALL subrepo:branch "$branch_name"
 
-    o "Find ancestor with same treehash."
-    if ! subrepo:merge-base "$refs_subrepo_fetch" "$branch_name" false; then
+    local branch_head_commit=$(git rev-parse "$branch_name")
+    local common_ancestor_commit=$(git merge-base "$branch_name" \
+"$refs_subrepo_fetch")
+    local fetch_head_commit=$(git rev-parse "$refs_subrepo_fetch")
+
+    o "Find common ancestor."
+    if [[ -z $common_ancestor_commit ]]; then
       error "Can't find a common ancestor between $refs_subrepo_fetch "\
 "and $branch_name. This might be the case if someone used push --force on "\
 "the subrepo. You need to find out why and possibly reclone the subrepo."
     fi
 
-    if [[ -n $first_on_source ]] && [[ -n $first_on_target ]]; then
+    if [[ $branch_head_commit == $fetch_head_commit ]]; then
       o "The subrepo:merge-base function reports same location."
       o ":$first_on_source:$first_on_target:"
       RUN git branch -D "$branch_name"
-      RUN git checkout "$original_head_branch"
       if $new_upstream ; then
-        if $update_wanted; then
-          o "Put updates into '$subdir/.gitrepo' file."
-          update-gitrepo-file
-        fi
         OK=true
       else
         OK=false
@@ -658,7 +648,7 @@ subrepo:push() {
       return
     fi
 
-    if [[ -n $first_on_source ]]; then
+    if [[ $common_ancestor_commit == $fetch_head_commit ]]; then
       o "We have found a common ancestor with $refs_subrepo_fetch:HEAD"
       ready_to_push=true
     fi
@@ -666,35 +656,6 @@ subrepo:push() {
     if ! $ready_to_push; then
       error "Local branch is not updated, perform pull or use "\
 "'--force' to always trust local branch in conflicts"
-    fi
-
-    command-workdir
-
-    o "Set a common ancestor."
-    RUN git rebase --onto "$new_parent" "$old_parent" "$branch_name"
-
-    if ! $force_wanted; then
-      # Theirs in this case will ignore upstream and simply push our changes
-      # without conflict
-      o "Run 'git rebase -X theirs $refs_subrepo_fetch $branch_name'."
-      FAIL=false OUT=true RUN git rebase -X theirs \
-          "$refs_subrepo_fetch" "$branch_name"
-      if ! OK; then
-        say "The \"git rebase\" command failed:"
-        say
-        say "  ${output//$'\n'/$'\n'  }"
-        CODE=2
-        return
-      fi
-    fi
-
-    if $using_workdir; then
-      o "Change directory to original '$original_working_dir'."
-      cd $original_working_dir
-      using_workdir=false
-    else
-      o "Checkout '$original_head_branch'."
-      RUN git checkout "$original_head_branch"
     fi
   else
     if ! git:rev-exists "$branch_name"; then
@@ -727,11 +688,6 @@ subrepo:push() {
   if [[ $branch_name == subrepo-push/$subdir ]]; then
     o "Remove branch '$branch_name'."
     RUN git branch -D "$branch_name"
-  fi
-
-  if $update_wanted; then
-    o "Put updates into '$subdir/.gitrepo' file."
-    update-gitrepo-file
   fi
 }
 
