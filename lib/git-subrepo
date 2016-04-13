@@ -1313,8 +1313,7 @@ command-workdir() {
     cd .git/workdir/$subdir
     FAIL=false RUN git cherry-pick --abort
     FAIL=false RUN git rebase --abort
-    FAIL=false RUN git reset --hard ORIG_HEAD
-    FAIL=false RUN git reset --hard HEAD
+    FAIL=false RUN git reset --hard
     if ! $OK; then
       FAIL=false RUN git checkout "$original_head_branch"
       if ! $OK; then
