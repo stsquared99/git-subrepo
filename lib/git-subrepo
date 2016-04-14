@@ -620,7 +620,7 @@ subrepo:push() {
     local fetch_head_commit=$(git rev-parse "$refs_subrepo_fetch")
 
     o "Find common ancestor."
-    if [[ -z $common_ancestor_commit ]]; then
+    if ! $force_wanted && [[ -z $common_ancestor_commit ]]; then
       error "Can't find a common ancestor between $refs_subrepo_fetch "\
 "and $branch_name. This might be the case if someone used push --force on "\
 "the subrepo. You need to find out why and possibly reclone the subrepo."
