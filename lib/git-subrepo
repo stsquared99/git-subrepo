@@ -571,7 +571,7 @@ subrepo:pull() {
   o "Create branch '$pull_branch' from '$refs_subrepo_fetch'."
   RUN git branch -fq "$pull_branch" "$refs_subrepo_fetch"
 
-  git filter-branch -f --index-filter \
+  TTY=true FAIL=false git filter-branch -f --index-filter \
     'git ls-files -s | sed "s-\t\"*-&sub/one/-" |
                 GIT_INDEX_FILE=$GIT_INDEX_FILE.new \
                         git update-index --index-info &&
@@ -591,6 +591,8 @@ subrepo:pull() {
     RUN git reset --hard "$original_head_commit"
     OK=false; CODE=1; return
   fi
+
+  update-gitrepo-file
 
   o "Remove branch '$pull_branch'."
   RUN git branch -D "$pull_branch"
