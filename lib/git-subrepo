@@ -551,7 +551,6 @@ subrepo:pull() {
     error "Can't find a common ancestor between $refs_subrepo_fetch "\
 "and $branch_name. This might be the case if someone used push --force on "\
 "the subrepo. You need to find out why and possibly reclone the subrepo."
-    OK=false; CODE=1; return
   fi
 
   # Check if we already are up to date:
@@ -563,7 +562,6 @@ subrepo:pull() {
   if [[ $common_ancestor_commit != $branch_head_commit ]]; then
     error "Local and remote branches diverge, perform \"push --force\" or "\
 "resolve conflicts manually"
-    OK=false; CODE=1; return
   fi
 
   local cherry_pick_index=$(git rev-list --count \
