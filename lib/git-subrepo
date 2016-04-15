@@ -566,10 +566,26 @@ subrepo:pull() {
     OK=false; CODE=1; return
   fi
 
-  o "Cherry-pick the difference in commits."
-  FAIL=false OUT=false RUN git cherry-pick \
-$common_ancestor_commit..$fetch_head_commit
+  local cherry_pick_index=$(git rev-list --count \
+"$common_ancestor_commit...$fetch_head_commit")
+  local pull_branch="subrepo-pull/$subdir"
 
+  o "Create branch '$pull_branch' from '$refs_subrepo_fetch'."
+  RUN git branch -fq "$pull_branch" "$refs_subrepo_fetch"
+
+  git filter-branch -f --index-filter \
+    'git ls-files -s | sed "s-\t\"*-&sub/one/-" |
+                GIT_INDEX_FILE=$GIT_INDEX_FILE.new \
+                        git update-index --index-info &&
+         mv "$GIT_INDEX_FILE.new" "$GIT_INDEX_FILE"' "$pull_branch"
+  if ! $OK; then
+    error "Failed to rewrite paths in branch '$pull_branch'."
+  fi
+
+  o "Cherry-pick the difference in commits."
+  FAIL=false RUN git cherry-pick --abort
+  FAIL=false OUT=false RUN git cherry-pick \
+"$pull_branch~$cherry_pick_index^..$pull_branch"
   if ! OK; then
     error "Encountered an error cherry-picking upstream changes"
     FAIL=false RUN git cherry-pick --abort
@@ -577,6 +593,9 @@ $common_ancestor_commit..$fetch_head_commit
     RUN git reset --hard "$original_head_commit"
     OK=false; CODE=1; return
   fi
+
+  o "Remove branch '$pull_branch'."
+  RUN git branch -D "$pull_branch"
 
   o "Create ref '$refs_subrepo_pull' for branch '$branch_name'."
   git:make-ref "$refs_subrepo_pull" "$branch_name"
